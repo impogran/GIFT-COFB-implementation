@@ -76,9 +76,7 @@ vector<vector<unsigned char>> initializeKey(int rows, int cols, vector<unsigned 
 		endl << "Collumns in the 1st row: " << init[0].size() << endl;
 
 	for (int i = rows - 1; i >= 0; i--) {
-		cout << i << endl;
 		for (int j = cols - 1; j >= 0; j--) {
-			cout << j << " ";
 			init[i][j] = key[keyIndex];
 			keyIndex++;
 
@@ -91,7 +89,7 @@ vector<vector<unsigned char>> initializeKey(int rows, int cols, vector<unsigned 
 int main() {
 
 	// Inputs
-	vector<unsigned char> encryptionKey, nonce, message = readFile("Message.txt");
+	vector<unsigned char> encryptionKey = readFile("Key.txt"), nonce, message = readFile("Message.txt");
 
 	//Processed data
 	vector<vector<unsigned char>> cipherState;
@@ -105,14 +103,12 @@ int main() {
 
 	//Key is initialized into 4 segments right-to-left, bottom-to-top
 	cipherKey = initializeKey(4, 32, encryptionKey);
-	/*
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 32; j++) {
 			cout<<cipherKey[i][j];
 		}
 		cout << endl;
 	}
-	*/
 
 	// Each encryption takes 40 rounds with 3 steps - SubCells, PermBits, and AddRoundKey
 
