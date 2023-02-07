@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <string>
 #include <bitset>
 #include <fstream>
@@ -10,30 +10,6 @@ using namespace std;
 int blockSize = 128;
 int tagLength = 128;
 //E_k (underlying block cipher) is GIFT-128
-
-//Truncating string into <length> first bits.
-string stringTruncate(string x, int length) {
-	char result[128]{};
-	if (length > x.length()) {
-		return "Given truncating length is bigger than original string's length.";
-	}
-	for (int i = 0; i < length; i++) {
-		result[i] = x[i];
-	}
-	return result;
-}
-
-// Check if string's length is the same as the block size
-bool isComplete(string x) {
-	if (x.length() == blockSize) return true;
-	return false;
-}
-
-// Check for repetitions of nonces (they should be non-repetetive)
-bool checkRepeated(const char *x, const char *y) {
-	if (!strcmp(x, y)) return true;
-	return false;
-}
 
 vector<unsigned char> readFile(const char* filename)
 {
@@ -72,8 +48,6 @@ vector<vector<unsigned char>> initializeVector(int rows, int cols, vector<unsign
 vector<vector<unsigned char>> initializeKey(int rows, int cols, vector<unsigned char> key) {
 	int keyIndex = 0;
 	vector<vector<unsigned char>> init(rows, vector<unsigned char>(cols));
-	cout << "Rows in the 2d vector: " << init.size() <<
-		endl << "Collumns in the 1st row: " << init[0].size() << endl;
 
 	for (int i = rows - 1; i >= 0; i--) {
 		for (int j = cols - 1; j >= 0; j--) {
@@ -86,6 +60,35 @@ vector<vector<unsigned char>> initializeKey(int rows, int cols, vector<unsigned 
 	return init;
 }
 
+vector<unsigned char> subCells(vector<unsigned char> s0, vector<unsigned char> s1, vector<unsigned char> s2, vector<unsigned char> s3) {
+	/*
+	Update the cipher state with the following instructions:
+	S1 ← S1 ⊕ (S0 & S2)
+	S0 ← S0 ⊕ (S1 & S3)
+	S2 ← S2 ⊕ (S0 | S1)
+	S3 ← S3 ⊕ S2
+	S1 ← S1 ⊕ S3
+	S3 ← ∼ S3
+	S2 ← S2 ⊕ (S0 & S1)
+	{S0, S1, S2, S3} ← {S3, S1, S2, S0}
+	*/
+
+	for (int i = 0; i < 32; i++) { s1[i] = s1[i] ^ (s0[i] & s2[i]); }
+	for (int i = 0; i < 32; i++) { s0[i] = s0[i] ^ (s1[i] & s3[i]); }
+	for (int i = 0; i < 32; i++) { s2[i] = s2[i] ^ (s0[i] | s1[i]); }
+	for (int i = 0; i < 32; i++) { s3[i] = s3[i] ^ s2[i]; }
+	for (int i = 0; i < 32; i++) { s1[i] = s1[i] ^ s3[i]; }
+	for (int i = 0; i < 32; i++) { s3[i] == '0' ? s3[i] = '1' : s3[i] = '0'; } //negation doesn't work normally as those are letters
+	for (int i = 0; i < 32; i++) { s2[i] = s2[i] ^ (s0[i] & s1[i]); }
+	
+	vector<unsigned char> tmp0 = s0;
+	vector<unsigned char> tmp3 = s3;
+
+	s0 = tmp3; s3 = tmp0;
+
+	return s0, s1, s2, s3;
+}
+
 int main() {
 
 	// Inputs
@@ -93,24 +96,33 @@ int main() {
 
 	//Processed data
 	vector<vector<unsigned char>> cipherState;
+	vector<unsigned char> s0, s1, s2, s3;
 	vector<vector<unsigned char>> cipherKey;
+	vector<unsigned char> l0, l1, l2, l3, ks0, ks1, ks2, ks3, ks4, ks5, ks6, ks7;
 
 	// Outputs
 	vector<unsigned char> cipherText, tag;
 
-	//Initialization puts 128-bit plaintext into 4 segments, top-to-bottom, right-to-left
+	//Initialization puts 128-bit plaintext into 4 segments of 32-bit words, top-to-bottom, right-to-left
 	cipherState = initializeVector(4, 32, message);
-
-	//Key is initialized into 4 segments right-to-left, bottom-to-top
+	s0 = cipherState[0];
+	s1 = cipherState[1];
+	s2 = cipherState[2];
+	s3 = cipherState[3];
+	
+	//Key is initialized into 8 segments of 16-bit words, right-to-left, bottom-to-top
 	cipherKey = initializeKey(4, 32, encryptionKey);
-	for (int i = 0; i < 4; i++) {
-		for (int j = 0; j < 32; j++) {
-			cout<<cipherKey[i][j];
-		}
-		cout << endl;
-	}
+	l0 = cipherKey[0]; l1 = cipherKey[1]; l2 = cipherKey[2]; l3 = cipherKey[3];
+	ks0 = { l0.begin(), l0.end() - 16 }; ks1 = { l0.begin() + 16, l0.end() };
+	ks2 = { l1.begin(), l1.end() - 16 }; ks3 = { l1.begin() + 16, l1.end() };
+	ks4 = { l2.begin(), l2.end() - 16 }; ks5 = { l2.begin() + 16, l2.end() };
+	ks6 = { l3.begin(), l3.end() - 16 }; ks7 = { l3.begin() + 16, l3.end() };
 
 	// Each encryption takes 40 rounds with 3 steps - SubCells, PermBits, and AddRoundKey
+	//SubCells (subCells function)
+	s0, s1, s2, s3 = subCells(s0, s1, s2, s3);
+	//PermBits (permBits function)
 
+	
 	return 0;
 }
